@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRAWDOWN — Two-Price Climate Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080c0d; --panel:#0e1416; --panel-2:#11191b; --line:#1d2b29;
+    --phos:#5fe6b4; --phos-dim:#2f7a60; --amber:#f0b24a; --hot:#ff5a4d;
+    --cool:#46c6e0; --xcr:#ffd24a; --ets:#7aa2ff; --ets-dim:#3c5494;
+    --ink:#cfeee0; --ink-dim:#7fa697;
+    --serif:'Newsreader',Georgia,serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono)}
+  body{min-height:100vh;padding:26px 18px 70px;
+    background-image:
+      radial-gradient(circle at 18% -10%, rgba(95,230,180,.06), transparent 45%),
+      radial-gradient(circle at 92% 0%, rgba(122,162,255,.06), transparent 42%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.014) 0 1px, transparent 1px 3px);}
+  .wrap{max-width:1000px;margin:0 auto}
+  .scan{pointer-events:none;position:fixed;inset:0;z-index:50;opacity:.4;mix-blend-mode:multiply;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 2px 4px)}
+
+  header.top{border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),var(--bg));padding:14px 18px;border-radius:4px;position:relative;overflow:hidden}
+  header.top::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--phos);box-shadow:0 0 14px var(--phos)}
+  .sysline{font-size:11px;letter-spacing:.22em;color:var(--phos-dim);text-transform:uppercase}
+  h1{font-weight:600;font-size:clamp(18px,3.5vw,27px);letter-spacing:.09em;margin:6px 0 2px}
+  h1 b{color:var(--phos);text-shadow:0 0 18px rgba(95,230,180,.4)}
+  .subhead{font-family:var(--serif);font-style:italic;font-size:15px;color:var(--ink-dim);margin:0}
+
+  .briefing{margin-top:18px;border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:22px 24px}
+  .briefing p{font-family:var(--serif);font-size:16px;line-height:1.62;margin:0 0 14px}
+  .briefing p.tag{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--amber);text-transform:uppercase}
+  .briefing .warn{color:var(--hot)}
+  .briefing ul{font-family:var(--serif);font-size:15px;line-height:1.55;color:var(--ink);margin:0 0 14px;padding-left:20px}
+
+  .btn{font-family:var(--mono);cursor:pointer;border:1px solid var(--phos-dim);background:#0c1715;color:var(--phos);
+       padding:10px 18px;border-radius:3px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;transition:.15s;font-weight:600}
+  .btn:hover{background:var(--phos);color:#04100b;box-shadow:0 0 16px rgba(95,230,180,.4)}
+  .btn:disabled{opacity:.3;cursor:not-allowed;box-shadow:none;background:#0c1715;color:var(--phos)}
+  .btn.ghost{border-color:var(--line);color:var(--ink-dim)} .btn.ghost:hover{background:var(--panel-2);color:var(--ink);box-shadow:none}
+  .btn.amber{border-color:var(--amber);color:var(--amber)} .btn.amber:hover{background:var(--amber);color:#241a00;box-shadow:0 0 16px rgba(240,178,74,.4)}
+
+  .game{display:none;margin-top:18px} .game.live{display:block}
+  .meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;flex-wrap:wrap}
+  .roundpill{font-size:11px;letter-spacing:.16em;color:var(--phos);text-transform:uppercase}
+  .regimebanner{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+  .regimebanner b.on{color:var(--phos)} .regimebanner b.ets{color:var(--ets)}
+
+  .hud{display:grid;grid-template-columns:1.1fr 1fr;gap:12px}
+  @media(max-width:680px){.hud{grid-template-columns:1fr}}
+  .gauge,.carbo{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:14px 16px}
+  .lbl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim)}
+  .tval{font-size:32px;font-weight:600;margin:2px 0 0;line-height:1}
+  .tval small{font-size:13px;color:var(--ink-dim);font-weight:400}
+  .track{height:9px;border-radius:5px;background:#0a1413;margin-top:12px;position:relative;overflow:hidden;border:1px solid var(--line)}
+  .fill{height:100%;width:0;transition:width .5s ease, background .5s}
+  .ticks{display:flex;justify-content:space-between;font-size:9px;color:var(--ink-dim);margin-top:5px}
+  .ticks span.safe{color:var(--phos)} .ticks span.thr{color:var(--hot)}
+
+  .console{margin-top:14px;border:1px solid var(--ets-dim);background:linear-gradient(180deg,rgba(122,162,255,.05),var(--panel));border-radius:4px;padding:16px 18px}
+  .console .ctitle{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ets);font-weight:600;margin-bottom:4px}
+  .console .csub{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--ink-dim);margin-bottom:14px}
+  .instruments{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.instruments{grid-template-columns:1fr}}
+  .inst{border:1px solid var(--line);background:var(--panel-2);border-radius:4px;padding:13px 14px}
+  .inst.ets-b{border-color:rgba(122,162,255,.3)} .inst.gcr-b{border-color:rgba(255,210,74,.3)}
+  .inst .ih{display:flex;align-items:center;gap:11px;cursor:pointer}
+  .sw{width:42px;height:22px;border-radius:99px;background:#1a2422;border:1px solid var(--line);position:relative;transition:.2s;flex:0 0 auto}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--ink-dim);transition:.2s}
+  .inst.on.ets-b .sw{background:rgba(122,162,255,.25);border-color:var(--ets)} .inst.on.ets-b .sw::after{left:22px;background:var(--ets);box-shadow:0 0 10px var(--ets)}
+  .inst.on.gcr-b .sw{background:rgba(255,210,74,.25);border-color:var(--xcr)} .inst.on.gcr-b .sw::after{left:22px;background:var(--xcr);box-shadow:0 0 10px var(--xcr)}
+  .inst .iname{font-size:12px;font-weight:600;letter-spacing:.04em}
+  .inst.ets-b .iname{color:var(--ets)} .inst.gcr-b .iname{color:var(--xcr)}
+  .inst .idesc{font-family:var(--serif);font-size:12px;color:var(--ink-dim);line-height:1.45;margin:9px 0 4px}
+  .slider-row{margin-top:11px;opacity:.35;pointer-events:none;transition:.2s}
+  .slider-row.on{opacity:1;pointer-events:auto}
+  .slider-row .sl-top{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-dim);margin-bottom:6px}
+  .slider-row .sl-top b{font-size:13px}
+  .inst.ets-b .sl-top b{color:var(--ets)} .inst.gcr-b .sl-top b{color:var(--xcr)}
+  input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:5px;outline:none}
+  .inst.ets-b input[type=range]{background:linear-gradient(90deg,#1a2422,var(--ets))}
+  .inst.gcr-b input.rew{background:linear-gradient(90deg,var(--hot),var(--amber) 38%,var(--phos))}
+  .inst.gcr-b input.cap{background:linear-gradient(90deg,#2a2010,var(--xcr))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:#fff;border:2px solid #04100b;cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:#fff;border:2px solid #04100b;cursor:pointer}
+  .sl-marks{display:flex;justify-content:space-between;font-size:9px;color:var(--ink-dim);margin-top:5px}
+  .zonebar{display:flex;height:5px;border-radius:3px;overflow:hidden;margin-top:7px;border:1px solid var(--line)}
+  .zone{height:100%} .zone.weak{background:#23303a} .zone.good{background:rgba(95,230,180,.55)} .zone.bad{background:rgba(255,90,77,.6)}
+  .crackline{font-size:10px;margin-top:6px;letter-spacing:.02em}
+  .crackline b.ok{color:var(--phos)} .crackline b.warn{color:var(--hot)} .crackline b.weak{color:var(--ink-dim)}
+  .runbar{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px;align-items:center}
+  .hint{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--ink-dim)}
+
+  .regions{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:14px}
+  .rcard{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:12px;transition:.2s}
+  .rcard.dead{opacity:.42;filter:grayscale(.6)}
+  .rcard .rn{font-size:12px;font-weight:600;letter-spacing:.05em;display:flex;justify-content:space-between;align-items:center;gap:6px}
+  .badges{display:flex;gap:4px}
+  .badge{font-size:8px;letter-spacing:.08em;padding:1px 5px;border-radius:99px;border:1px solid}
+  .badge.ets{color:var(--ets);border-color:var(--ets-dim);background:rgba(122,162,255,.1)}
+  .badge.gcr{color:var(--xcr);border-color:rgba(255,210,74,.4);background:rgba(255,210,74,.08)}
+  .badge.bk{color:var(--hot);border-color:rgba(255,90,77,.5);background:rgba(255,90,77,.12)}
+  .rcard .arch{font-family:var(--serif);font-style:italic;font-size:11px;color:var(--ink-dim);margin:2px 0 8px}
+  .rcard .wealth{font-size:20px;font-weight:600}
+  .rcard .wealth small{font-size:10px;color:var(--ink-dim);font-weight:400}
+  .actline{margin-top:8px;display:flex;gap:5px;flex-wrap:wrap}
+  .act{font-size:10px;letter-spacing:.07em;padding:3px 7px;border-radius:3px}
+  .act.DIRTY{background:rgba(255,90,77,.12);color:var(--hot);border:1px solid rgba(255,90,77,.3)}
+  .act.CLEAN{background:rgba(70,198,224,.12);color:var(--cool);border:1px solid rgba(70,198,224,.3)}
+  .act.REM{background:rgba(255,210,74,.12);color:var(--xcr);border:1px solid rgba(255,210,74,.35)}
+  .rcard .why{font-family:var(--serif);font-size:10.5px;color:var(--ink-dim);line-height:1.4;margin-top:7px;min-height:14px}
+
+  .vrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  @media(max-width:680px){.vrow{grid-template-columns:1fr}}
+  .vpanel{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:13px 16px}
+  .vpanel svg{width:100%;height:auto;display:block;margin:6px auto 0}
+  .weblegend{display:flex;gap:13px;justify-content:center;flex-wrap:wrap;font-size:9.5px;color:var(--ink-dim);margin-top:6px}
+  .weblegend span{display:flex;align-items:center;gap:5px}
+  .weblegend i{display:inline-block}
+  .weblegend i.gl{width:15px;border-top:3px solid var(--phos)}
+  .weblegend i.er{width:11px;height:11px;border-radius:50%;border:2px solid var(--ets)}
+  .weblegend i.gd{width:8px;height:8px;border-radius:50%;background:var(--xcr)}
+  .weblegend i.bn{width:15px;border-top:2px dashed var(--hot);opacity:.6}
+
+  .logwrap{margin-top:14px;border:1px solid var(--line);background:#070d0c;border-radius:4px;padding:6px 0}
+  .log{max-height:170px;overflow-y:auto;padding:6px 16px}
+  .log p{font-family:var(--serif);font-size:13px;line-height:1.5;margin:0 0 9px}
+  .log p .t{font-family:var(--mono);font-size:10px;color:var(--phos-dim);letter-spacing:.1em;margin-right:8px}
+  .log p.crisis{color:var(--hot)} .log p.crisis .t{color:var(--hot)}
+  .log p.ets{color:var(--ets)} .log p.ets .t{color:var(--ets-dim)}
+  .log p.good{color:var(--phos)} .log p.good .t{color:var(--phos-dim)}
+  .log p.sys{color:var(--amber);font-family:var(--mono);font-size:11px}
+  .log::-webkit-scrollbar{width:8px} .log::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
+
+  .endcard{margin-top:16px;border:1px solid var(--line);border-radius:4px;padding:22px 24px;display:none}
+  .endcard.show{display:block;animation:rise .5s ease}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .endcard.red{border-color:var(--hot);background:linear-gradient(180deg,rgba(255,90,77,.07),var(--panel))}
+  .endcard.amber{border-color:var(--amber);background:linear-gradient(180deg,rgba(240,178,74,.08),var(--panel))}
+  .endcard.green{border-color:var(--phos);background:linear-gradient(180deg,rgba(95,230,180,.08),var(--panel))}
+  .endcard .et{font-size:15px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;margin-bottom:10px}
+  .endcard.red .et{color:var(--hot)} .endcard.amber .et{color:var(--amber)} .endcard.green .et{color:var(--phos)}
+  .endcard p{font-family:var(--serif);font-size:15px;line-height:1.6;margin:0 0 12px}
+</style>
+</head>
+<body>
+<div class="scan"></div>
+<div class="wrap">
+  <header class="top">
+    <div class="sysline">Strategic Coordination Lab · Scenario file 1.5° · Two-price console</div>
+    <h1>DRAWDOWN <b>//</b> SOURCE &amp; SINK</h1>
+    <p class="subhead">Two instruments, two axes. One prices the carbon you emit; one pays for the carbon you remove. Find out what each can — and can't — do.</p>
+  </header>
+
+  <section class="briefing" id="briefing">
+    <p class="tag">▸ Console briefing</p>
+    <p>Five blocs share one atmosphere. Each cycle a bloc makes two separate decisions: how to power itself — <b>burn dirty</b> (cheap, emits) or <b>abate</b> (costlier, clean) — and whether to <b>remove carbon</b> from the air. Left alone, every bloc burns and none removes: the commons cooks. Run it once and watch.</p>
+    <p>You hold two instruments, and they act on different decisions:</p>
+    <ul>
+      <li><b style="color:var(--ets)">TAX CLUB · ETS + border tariff</b> — <em>source-side.</em> Prices emissions, so burning stops paying. A border tariff coerces outsiders in. But a price can only push emissions toward zero — it can't pull carbon back out, and <em>taxes hurt someone</em>: push the price too high and blocs revolt, hollow it out, and keep burning.</li>
+      <li><b style="color:var(--xcr)">CARBON REWARD · GCR</b> — <em>sink-side.</em> Pays for removal only — it does <em>not</em> stop anyone burning. And it's capacity-limited: the central-bank backstop can fund only so much removal per cycle (your CQE / inflation ceiling, and the world's real CDR is tiny). It's the only path below zero, but it can't out-remove an open tap.</li>
+    </ul>
+    <p class="warn">Run each alone, then together. Watch where each one stalls — and why neither finishes the job by itself.</p>
+    <div class="runbar"><button class="btn" onclick="begin()">▸ Power up console</button></div>
+  </section>
+
+  <section class="game" id="game">
+    <div class="meta">
+      <span class="roundpill" id="roundPill">CYCLE 0 / 12</span>
+      <span class="regimebanner" id="regimeBanner"></span>
+    </div>
+
+    <div class="hud">
+      <div class="gauge">
+        <div class="lbl">Global mean temperature <span id="peakNote" style="color:var(--ink-dim);letter-spacing:.04em"></span></div>
+        <div class="tval"><span id="tempVal">1.10</span><small>°C above pre-industrial</small></div>
+        <div class="track"><div class="fill" id="tempFill"></div></div>
+        <div class="ticks"><span>1.1°</span><span class="safe">1.5° safe</span><span class="thr">2.0° overshoot</span><span class="thr">2.5°</span></div>
+      </div>
+      <div class="carbo">
+        <div class="lbl">Atmospheric carbon load</div>
+        <div class="tval"><span id="emVal">0</span><small>net units</small></div>
+        <div class="track"><div class="fill" id="emFill" style="background:var(--amber)"></div></div>
+        <div class="ticks"><span>drawdown</span><span>stable</span><span class="thr">overshoot</span></div>
+      </div>
+    </div>
+
+    <div class="console">
+      <div class="ctitle">⚙ Policy console — the rules are yours to edit</div>
+      <div class="csub">Toggle instruments and tune them, then advance. Changes take effect next cycle.</div>
+      <div class="instruments">
+        <div class="inst ets-b" id="instEts">
+          <div class="ih" onclick="toggleTax()"><div class="sw"></div><div class="iname">TAX CLUB · ETS + CBAM</div></div>
+          <div class="idesc">Prices emissions so burning stops paying; a border tariff drags outsiders in. But taxes hurt someone — push the price too high and blocs revolt.</div>
+          <div class="slider-row" id="tauRow">
+            <div class="sl-top"><span>Carbon price τ</span><span><b id="tauOut">2.0</b> /unit</span></div>
+            <input type="range" min="0" max="3" step="0.1" value="2" id="tauSlider" oninput="setTau(this.value)">
+            <div class="zonebar"><span class="zone weak" id="zWeak"></span><span class="zone good" id="zGood"></span><span class="zone bad" id="zBad"></span></div>
+            <div class="crackline" id="crackLine"></div>
+          </div>
+        </div>
+        <div class="inst gcr-b" id="instGcr">
+          <div class="ih" onclick="toggleGcr()"><div class="sw"></div><div class="iname">CARBON REWARD · GCR / XCR</div></div>
+          <div class="idesc">Pays for removal only — doesn't stop burning. Sink-side: the only path below zero, but capacity-limited.</div>
+          <div class="slider-row" id="xRow">
+            <div class="sl-top"><span>Reward per unit removed</span><span><b id="xOut">8</b> /unit</span></div>
+            <input type="range" class="rew" min="0" max="14" step="1" value="8" id="xSlider" oninput="setX(this.value)">
+            <div class="sl-marks"><span>0</span><span>removal becomes profitable ~$2</span><span>14</span></div>
+          </div>
+          <div class="slider-row" id="capRow">
+            <div class="sl-top"><span>Funded-removal ceiling (CQE / CDR capacity)</span><span><b id="capOut">5</b> units/cyc</span></div>
+            <input type="range" class="cap" min="0" max="16" step="1" value="5" id="capSlider" oninput="setCap(this.value)">
+            <div class="sl-marks"><span>0</span><span>~7+ : "remove our way out" (implausible)</span><span>16</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="runbar">
+        <button class="btn" id="advBtn" onclick="advance()">▸ Advance cycle</button>
+        <button class="btn amber" id="autoBtn" onclick="toggleAuto()">▸▸ Auto-run</button>
+        <button class="btn ghost" id="resetBtn" onclick="resetWorld()">↺ Reset world</button>
+        <span class="hint" id="consoleHint">Run the baseline first — no instruments. Watch it fail.</span>
+      </div>
+    </div>
+
+    <div class="regions" id="regions"></div>
+
+    <div class="vrow">
+      <div class="vpanel">
+        <div class="lbl">Coalition map · green = clean-energy club · blue ring = ETS member · gold dot = removing</div>
+        <svg id="web" viewBox="0 0 360 250" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="weblegend">
+          <span><i class="gl"></i> abatement club</span>
+          <span><i class="er"></i> in ETS</span>
+          <span><i class="gd"></i> sequestering</span>
+          <span><i class="bn"></i> both burning</span>
+        </div>
+      </div>
+      <div class="vpanel">
+        <div class="lbl">Posture map · the two-price problem · priced (ETS) × removing (GCR)</div>
+        <svg id="quad" viewBox="0 0 360 250" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </div>
+
+    <div class="logwrap"><div class="log" id="log"></div></div>
+
+    <div class="endcard" id="endCard"><div class="et" id="endTitle"></div><div id="endBody"></div></div>
+  </section>
+</div>
+
+<script>
+// ===================== DECOUPLED TWO-PRICE MODEL (proven in node) =====================
+const CFG={baselineT:1.10,emFactor:0.015,damageScale:3.0,winT:1.5,overshootT:2.0,catastropheT:2.5,rounds:12};
+const DIRTY_INC=8, DIRTY_EM=3, CLEAN_INC=3, REM_UNIT=3, C_REM=1.5, INERTIA=3;
+const CLUB_RELIEF=0.08, CLUB_CAP=3, KAPPA=1.6, JOINCOST=5;
+const ARCH=[
+  {id:'industrial',name:'MERIDIAN',arch:'old industrial core',  vuln:1.2,fossil:1.0,tol:5.0,strategy:'rational'},
+  {id:'emerging',  name:'KARASU',  arch:'fast-rising economy',  vuln:1.5,fossil:1.2,tol:2.8,strategy:'conditional'},
+  {id:'petro',     name:'AZRAQ',   arch:'petro-exporter',       vuln:0.8,fossil:1.6,tol:1.5,strategy:'holdout'},
+  {id:'temperate', name:'VESNA',   arch:'temperate middle power',vuln:1.3,fossil:0.9,tol:2.9,strategy:'reciprocator'},
+  {id:'frontline', name:'TUVALA',  arch:'frontline archipelago',vuln:3.0,fossil:0.4,tol:99,strategy:'idealist'},
+];
+const STRATLABEL={rational:'rational maximizer',conditional:'conditional cooperator',holdout:'fossil holdout',reciprocator:'tit-for-tat',idealist:'unilateral abater'};
+const temp=e=>Math.max(1.0,CFG.baselineT+e*CFG.emFactor);
+const md=(em,v)=>em*CFG.emFactor*v*CFG.damageScale;
+const cd=(t,v)=>Math.max(0,(t-CFG.baselineT))*v*CFG.damageScale;
+const feedback=t=>t>=CFG.overshootT?6:0;
+
+let S=null, autoTimer=null;
+
+// political backlash: a club member whose pain (price x carbon-intensity) exceeds tolerance CRACKS —
+// stays in the club (coercion won) but hollows out the price domestically and keeps burning.
+const cracked=b=> S.tax && b.inTax && (S.tau*b.fossil > b.tol);
+const crackCountAt=tau=> ARCH.filter(b=> tau*b.fossil > b.tol).length;
+const backlashTau=()=>{ // price at which the SECOND bloc cracks (backlash onset)
+  const thr=ARCH.map(b=>b.tol/b.fossil).sort((a,c)=>a-c); return thr[1];
+};
+const eDirty=b=> DIRTY_INC - ((S.tax&&b.inTax&&!cracked(b))?S.tau*DIRTY_EM:0) - md(DIRTY_EM,b.vuln);
+const eClean=b=> CLEAN_INC - md(0,b.vuln);
+function energy(b,round,coopOth,defOth){
+  if(cracked(b)) return 'dirty';   // backlash overrides economics: hollow the price, keep burning
+  switch(b.strategy){
+    case 'idealist': return 'clean';
+    case 'holdout':  return eClean(b) > eDirty(b)+INERTIA ? 'clean':'dirty';
+    case 'rational': return eClean(b) > eDirty(b) ? 'clean':'dirty';
+    case 'reciprocator':
+      if(round===1) return 'clean';
+      if(S.tax&&b.inTax && eClean(b)>eDirty(b)) return 'clean';
+      return coopOth>=defOth?'clean':'dirty';
+    case 'conditional':
+      if(round===1) return 'dirty';
+      if(S.tax&&b.inTax && eClean(b)>eDirty(b)) return 'clean';
+      return coopOth>=2?'clean':'dirty';
+  } return 'dirty';
+}
+const removalProfitable=()=> S.gcr && (S.x - C_REM) > 0;
+function whyText(b){
+  const burn=b.energyAct==='dirty';
+  let s;
+  if(b.crk){ s='Domestic backlash: the carbon price is too painful, so it stays in the club but hollows the price out and keeps burning.'; }
+  else switch(b.strategy){
+    case 'idealist': s='Abates voluntarily — the lone unilateral mover.'; break;
+    case 'holdout':  s=burn?(b.inTax?'In the ETS but games it — pays the tax and keeps burning.':'Burns cheap fossil energy — no price, no reason to stop.'):'A high enough carbon price finally cracked it — abates.'; break;
+    case 'rational': s=burn?'No carbon price on it — dirty energy is simply cheaper.':'Priced in: abating now beats paying the carbon tax.'; break;
+    case 'reciprocator': s=burn?'Burns — others are, and nothing prices it otherwise.':'Abates — priced into the club, or mirroring the cleaners.'; break;
+    case 'conditional':  s=burn?'Burns — waiting for a binding signal.':'Priced into the club — now it abates.'; break;
+    default: s='';
+  }
+  if(b.seq) s+= b.crk?' But its developers still sequester for the reward.':' Also sequesters for the reward.';
+  return s;
+}
+
+// ===================== FLOW =====================
+function freshRegions(){ return ARCH.map(a=>({...a,wealth:50,alive:true,energyAct:null,seq:false,inTax:false,crk:false,club:0,dead:false})); }
+function begin(){
+  S={tax:false,gcr:false,tau:2,x:8,rmax:5,round:0,emTotal:0,peak:1.10,peakEm:0,over:false,regions:freshRegions(),log:[]};
+  document.getElementById('briefing').style.display='none';
+  document.getElementById('game').classList.add('live');
+  pushLog('sys','CONSOLE ONLINE — baseline ruleset, no instruments. Advance to run.');
+  render();
+}
+function resetWorld(){
+  stopAuto(); const {tax,gcr,tau,x,rmax}=S;
+  S={tax,gcr,tau,x,rmax,round:0,emTotal:0,peak:1.10,peakEm:0,over:false,regions:freshRegions(),log:[]};
+  document.getElementById('endCard').classList.remove('show');
+  const r=[]; if(tax)r.push('ETS τ='+tau); if(gcr)r.push('GCR x='+x+' cap='+rmax);
+  pushLog('sys','WORLD RESET — '+(r.length?r.join(' + '):'baseline, no instruments')+'.');
+  render();
+}
+function toggleTax(){ S.tax=!S.tax; document.getElementById('instEts').classList.toggle('on',S.tax); document.getElementById('tauRow').classList.toggle('on',S.tax); render(); }
+function toggleGcr(){ S.gcr=!S.gcr; document.getElementById('instGcr').classList.toggle('on',S.gcr); document.getElementById('xRow').classList.toggle('on',S.gcr); document.getElementById('capRow').classList.toggle('on',S.gcr); render(); }
+function setTau(v){ S.tau=parseFloat(v); document.getElementById('tauOut').textContent=parseFloat(v).toFixed(1); updateResistance(); render(); }
+function updateResistance(){
+  const max=3, bl=backlashTau(), weakEnd=1.5;          // <1.5 too weak to bite; backlashTau = 2nd cracker
+  document.getElementById('zWeak').style.width=(weakEnd/max*100)+'%';
+  document.getElementById('zGood').style.width=((Math.min(bl,max)-weakEnd)/max*100)+'%';
+  document.getElementById('zBad').style.width=((max-Math.min(bl,max))/max*100)+'%';
+  const n=crackCountAt(S.tau), cl=document.getElementById('crackLine');
+  if(S.tau<weakEnd) cl.innerHTML=`<b class="weak">Price too weak to bite</b> — blocs free-ride, the flow stays high.`;
+  else if(n<=1) cl.innerHTML=`<b class="ok">Effective zone</b> — only the structural petro-holdout cracks. ${n} bloc resisting.`;
+  else cl.innerHTML=`<b class="warn">Backlash zone</b> — at τ=${S.tau.toFixed(1)}, ${n} blocs crack under domestic revolt and burn anyway.`;
+}
+function setX(v){ S.x=parseFloat(v); document.getElementById('xOut').textContent=v; render(); }
+function setCap(v){ S.rmax=parseFloat(v); document.getElementById('capOut').textContent=v; render(); }
+function toggleAuto(){ if(autoTimer) stopAuto(); else startAuto(); }
+function startAuto(){ if(S.over)return; document.getElementById('autoBtn').textContent='\u25a0 Stop'; autoTimer=setInterval(()=>{ if(S.over){stopAuto();return;} advance(); },720); }
+function stopAuto(){ if(autoTimer){clearInterval(autoTimer);autoTimer=null;} const b=document.getElementById('autoBtn'); if(b)b.textContent='\u25b6\u25b6 Auto-run'; }
+
+// ===================== TURN =====================
+function advance(){
+  if(S.over) return;
+  S.round++;
+  const t0=temp(S.emTotal), fb=feedback(t0);
+
+  if(S.tax){
+    if(S.regions.filter(r=>r.inTax).length===0){
+      S.regions.forEach(r=>{ if(r.id==='industrial'||r.id==='frontline') r.inTax=true; });
+      pushLog('ets','ETS founded: MERIDIAN and TUVALA price their carbon and stand up a border tariff.');
+    }
+    const M=S.regions.filter(r=>r.alive&&r.inTax).length;
+    S.regions.forEach(r=>{ if(!r.alive||r.inTax)return; const cbam=KAPPA*r.fossil*M;
+      if(cbam>=JOINCOST){ r.inTax=true; pushLog('ets',`${r.name} joins the ETS — the border tariff (~$${cbam.toFixed(0)} to stay out) outweighs pricing its own carbon.`); } });
+  }
+
+  // energy decisions (compute crack state first)
+  const snap={}; S.regions.forEach(r=>snap[r.id]=r.energyAct);
+  S.regions.forEach(r=>{ if(!r.alive){r.energyAct=null;r.crk=false;return;}
+    r.crk=cracked(r);
+    let c=0,d=0; S.regions.forEach(o=>{ if(o.id===r.id||!o.alive||snap[o.id]==null)return; snap[o.id]==='clean'?c++:d++; });
+    r.energyAct=energy(r,S.round,c,d); });
+
+  // removal: capacity-capped
+  const seekers=S.regions.filter(r=>r.alive && removalProfitable());
+  const desired=seekers.length*REM_UNIT;
+  const actualTot=Math.min(desired,S.rmax), scale=desired>0?actualTot/desired:0;
+
+  let emDelta=0; const moves=[];
+  S.regions.forEach(r=>{ if(!r.alive){r.seq=false;return;}
+    const eEm=r.energyAct==='dirty'?DIRTY_EM:0;
+    const paysTax=S.tax&&r.inTax&&!r.crk&&r.energyAct==='dirty';
+    const eInc=r.energyAct==='dirty'?(DIRTY_INC-(paysTax?S.tau*DIRTY_EM:0)):CLEAN_INC;
+    const rem=removalProfitable()?REM_UNIT*scale:0; r.seq=rem>0.001;
+    emDelta+=eEm-rem;
+    r.wealth+=eInc - md(eEm,r.vuln) + rem*(S.x-C_REM);
+    r.why=whyText(r);
+    if(r.crk && !r.wasCrk){ r.wasCrk=true; pushLog('crisis',`${r.name} revolts against the carbon price — backlash. It stays in the club but hollows the price out and keeps burning.`); }
+    moves.push({name:r.name,e:r.energyAct,seq:r.seq});
+  });
+
+  S.emTotal=Math.round((S.emTotal+emDelta+fb)*10)/10;
+  if(S.emTotal>S.peakEm)S.peakEm=S.emTotal;
+  const t1=temp(S.emTotal); if(t1>S.peak)S.peak=t1;
+
+  S.regions.forEach(r=>{ let p=0; if(r.alive&&r.energyAct==='clean') S.regions.forEach(o=>{ if(o.id!==r.id&&o.alive&&o.energyAct==='clean')p++; }); r.club=Math.min(p,CLUB_CAP); });
+  let crisis=false;
+  S.regions.forEach(r=>{ if(!r.alive)return; const dmg=cd(t1,r.vuln)*(1-CLUB_RELIEF*r.club); r.wealth-=dmg; if(dmg>6)crisis=true; if(r.wealth<=0){r.wealth=0;r.alive=false;} });
+
+  narrate(moves,t0,t1,emDelta,actualTot,fb);
+  checkEnd(t1); render();
+}
+
+function narrate(moves,t0,t1,emDelta,removed,fb){
+  const burn=moves.filter(m=>m.e==='dirty').map(m=>m.name), clean=moves.filter(m=>m.e==='clean').map(m=>m.name);
+  const parts=[]; if(burn.length)parts.push(`${burn.join(', ')} burn`); if(clean.length)parts.push(`${clean.join(', ')} abate`);
+  let rem = removed>0 ? ` Removal funded this cycle: ${removed.toFixed(0)} (cap ${S.rmax}).` : '';
+  const dT=t1-t0, dir=dT>=0?`+${dT.toFixed(2)}\u00b0`:`${dT.toFixed(2)}\u00b0`;
+  pushLog(emDelta>0?'':'good',`Cycle ${S.round}: ${parts.join('; ')}.${rem} Net carbon ${emDelta>=0?'+':''}${emDelta.toFixed(0)} \u2192 ${dir} to ${t1.toFixed(2)}\u00b0C.`);
+  if(S.gcr && removed>0 && removed>=S.rmax && moves.filter(m=>m.e==='dirty').length>0)
+    pushLog('crisis','Removal is maxed at the funded ceiling, but blocs are still burning — the sink can\u2019t out-pace the open tap.');
+  if(fb>0) pushLog('crisis',`Past 2\u00b0C: carbon-cycle feedbacks fire (+${fb}, no bloc chose it). Warming now drives itself.`);
+  S.regions.forEach(r=>{ if(!r.alive&&!r.dead){ r.dead=true; pushLog('crisis',`${r.name} \u2014 ${r.arch} \u2014 is bankrupted by climate damage and exits.`); } });
+}
+
+// ===================== ENDINGS =====================
+function checkEnd(t){
+  if(t>=CFG.catastropheT) return endGame('catastrophe',t);
+  if(S.round>=CFG.rounds){
+    const fell = (S.peakEm - S.emTotal) > 2;   // temperature actually fell = net-negative removal occurred
+    if(fell && t<CFG.winT) return endGame('drawdown',t);
+    if(t>=CFG.overshootT)  return endGame('overshoot',t);
+    return endGame('stabilized',t);            // plateaued (no fall), or falling but not yet safe
+  }
+}
+function endGame(kind,t){
+  S.over=true; stopAuto();
+  const card=document.getElementById('endCard'),title=document.getElementById('endTitle'),body=document.getElementById('endBody');
+  card.classList.remove('red','amber','green','show');
+  const fin=t.toFixed(2), peak=S.peak.toFixed(2);
+  const both=S.tax&&S.gcr, taxOnly=S.tax&&!S.gcr, gcrOnly=!S.tax&&S.gcr, none=!S.tax&&!S.gcr;
+  const belowLine = t<CFG.winT;
+  if(kind==='catastrophe'||kind==='overshoot'){
+    card.classList.add('red');
+    title.textContent= kind==='catastrophe'?'\u2715 CATASTROPHE':'\u2715 OVERSHOOT LOCKED IN';
+    let m= kind==='catastrophe'?`Warming crossed ${fin}\u00b0C and the feedbacks took over.`:`Twelve cycles done; warming finished at ${fin}\u00b0C, past the 2\u00b0 line.`;
+    if(none) body.innerHTML=`<p>${m}</p><p>No instrument was running. Every bloc burned cheap fossil energy and none removed carbon \u2014 each one's restraint a rounding error against the whole. Played by these rules the scenario can\u2019t be won. Change the rules: switch on an instrument and reset.</p>`;
+    else if(gcrOnly) body.innerHTML=`<p>${m}</p><p>The reward funded removal up to its ceiling (${S.rmax}/cycle) \u2014 but with no price on carbon, everyone kept burning, and the sink can\u2019t out-pace the flow. Raise the funded-removal ceiling and you can brute-force it, but that assumes implausible CDR capacity. The honest fix is to turn off the tap: add the tax club.</p>`;
+    else if(S.tax && crackCountAt(S.tau)>=2) body.innerHTML=`<p>${m}</p><p><b style="color:var(--hot)">You overshot the political ceiling.</b> At τ=${S.tau.toFixed(1)} the price became too painful and ${crackCountAt(S.tau)} blocs revolted \u2014 they stayed in the club but hollowed the price out and kept burning, so emissions rebounded and the outcome got <em>worse</em> than a moderate price would have. A carbon tax has two ceilings: it can\u2019t go below zero, and it can\u2019t go above what people will tolerate. Back the price down to the effective zone${S.gcr?'':' and add a reward, which hurts no one and keeps working through the backlash'}.</p>`;
+    else body.innerHTML=`<p>${m}</p><p>The instruments weren\u2019t strong enough to bend the curve in time. Strengthen them, or note how late action loses to the feedbacks.</p>`;
+  } else if(kind==='stabilized'){
+    card.classList.add('amber');
+    title.textContent='\u25b3 STABILIZED \u2014 BUT NOT DRAWN DOWN';
+    let head = belowLine
+      ? `<p>Warming plateaued at <b style="color:var(--amber)">${fin}\u00b0C</b>. You flattened the curve \u2014 but look closely: the temperature <em>stopped rising; it never fell</em>. That isn\u2019t drawdown.</p>`
+      : `<p>Warming held at <b style="color:var(--amber)">${fin}\u00b0C</b> \u2014 the collapse is stopped, but you\u2019re plateaued in the overshoot band, and the temperature never fell.</p>`;
+    if(taxOnly) body.innerHTML=head+`<p>This is the <b>source-side ceiling</b>. A carbon price can drive emissions toward zero \u2014 a flat curve \u2014 but it <em>cannot go negative</em>, so it can never pull back the carbon already in the air. Pricing halts the rise; it cannot reverse it. To bend the curve <em>down</em> you need a sink: switch on the Carbon Reward. (And note \u2014 in reality warming is already locked in near this line, so a plateau isn\u2019t the goal. Drawdown is.)</p>`;
+    else if(gcrOnly) body.innerHTML=head+`<p>This is the <b>sink-side ceiling</b>. Removal ran at its funded cap every cycle \u2014 but with the tap open, the flow matched it, so net emissions never turned negative and the temperature never fell. A capped sink can\u2019t out-pace open emissions. Turn off the tap: add the tax club.</p>`;
+    else body.innerHTML=head+`<p>The curve flattened but didn\u2019t bend down. Cut the flow harder with a higher price, or fund more removal \u2014 you need net-negative, not net-zero.</p>`;
+  } else {
+    card.classList.add('green');
+    title.textContent='\u25c7 DRAWDOWN ACHIEVED';
+    let head=`<p>The temperature <b style="color:var(--phos)">actually fell</b> \u2014 net-negative emissions \u2014 from a peak of ${peak}\u00b0C back to ${fin}\u00b0C, below the safe line. The curve didn\u2019t just flatten; it bent down.</p>`;
+    if(both) body.innerHTML=head+`<p>Both instruments, each doing what the other structurally can\u2019t. The <b style="color:var(--ets)">tax club</b> turned off the tap \u2014 pricing carbon and using the border tariff to drag the holdout into the priced regime \u2014 cutting the flow to a small residual. The <b style="color:var(--xcr)">reward</b> then funded removal of that residual, going net-negative where pricing never could. Neither reached drawdown alone: pricing flattens but can\u2019t fall, and a capped sink can\u2019t out-pace an open tap. <b style="color:var(--phos)">Complementary, not competitive.</b></p>`;
+    else if(gcrOnly) body.innerHTML=head+`<p>You drew down on the reward alone \u2014 but only because the funded-removal ceiling (${S.rmax}/cycle) is set high enough to out-pace the open tap. That assumes far more cheap CDR capacity than exists. Drop the ceiling to a realistic level and the sink can no longer keep up without a price cutting the flow first.</p>`;
+    else body.innerHTML=head+`<p>Drawdown reached.</p>`;
+  }
+  card.classList.add('show'); render(); card.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+// ===================== RENDER =====================
+function pushLog(cls,text){ S.log.push({cls,text}); }
+const COOPe=b=> b.energyAct==='clean';
+function render(){
+  const t=temp(S.emTotal);
+  if(S.tax) updateResistance();
+  document.getElementById('roundPill').textContent=`CYCLE ${S.round} / ${CFG.rounds}`;
+  const rb=document.getElementById('regimeBanner'), tags=[];
+  tags.push(S.tax?`<b class="ets">ETS \u03c4=${S.tau.toFixed(1)}</b>`:'<span>ETS off</span>');
+  tags.push(S.gcr?`<b class="on">GCR x=${S.x} cap=${S.rmax}</b>`:'<span>GCR off</span>');
+  rb.innerHTML='RULESET: '+tags.join(' &nbsp;\u00b7&nbsp; ');
+  document.getElementById('tempVal').textContent=t.toFixed(2);
+  const pn=document.getElementById('peakNote');
+  if(S.round===0){ pn.textContent=''; }
+  else { const falling=(S.peakEm-S.emTotal)>0.5; const flat=Math.abs(S.peakEm-S.emTotal)<=0.5 && S.peak>1.101;
+    pn.innerHTML = falling ? `· peak ${S.peak.toFixed(2)}\u00b0 <span style="color:var(--phos)">\u25bc falling</span>`
+      : flat ? `· <span style="color:var(--amber)">\u2014 plateaued</span>` : `· <span style="color:var(--hot)">\u25b2 rising</span>`; }
+  const tf=document.getElementById('tempFill');
+  tf.style.width=Math.min(100,((t-1.0)/(CFG.catastropheT-1.0))*100)+'%';
+  tf.style.background=t<CFG.winT?'var(--phos)':t<CFG.overshootT?'var(--amber)':'var(--hot)';
+  document.getElementById('emVal').textContent=Math.round(S.emTotal);
+  const emf=document.getElementById('emFill');
+  emf.style.width=Math.min(100,Math.max(2,((S.emTotal+60)/210)*100))+'%';
+  emf.style.background=S.emTotal<=0?'var(--phos)':S.emTotal<60?'var(--amber)':'var(--hot)';
+  document.getElementById('advBtn').disabled=S.over; document.getElementById('autoBtn').disabled=S.over;
+  const hint=document.getElementById('consoleHint');
+  hint.textContent = S.over?'Scenario ended. Adjust instruments and reset the world to run again.'
+    : (S.round===0&&!S.tax&&!S.gcr)?'Run the baseline first — no instruments. Watch it fail.'
+    : 'Advance cycle by cycle, or auto-run to the end.';
+
+  const rc=document.getElementById('regions'); rc.innerHTML='';
+  S.regions.forEach(r=>{
+    const d=document.createElement('div'); d.className='rcard'+(r.alive?'':' dead');
+    let actHtml=''; if(r.energyAct){ actHtml=`<span class="act ${r.energyAct.toUpperCase()}">${r.energyAct.toUpperCase()}</span>`; if(r.seq) actHtml+=`<span class="act REM">+REMOVE</span>`; }
+    const badges=[]; if(r.inTax)badges.push('<span class="badge ets">ETS</span>'); if(r.crk)badges.push('<span class="badge bk">BACKLASH</span>'); if(r.seq)badges.push('<span class="badge gcr">GCR</span>');
+    const club=(r.alive&&r.club>0)?`<span style="font-size:9px;color:var(--phos);margin-left:6px">\u25c6\u00d7${r.club}</span>`:'';
+    d.innerHTML=`<div class="rn"><span>${r.name}</span><span class="badges">${badges.join('')}</span></div>
+      <div class="arch">${r.arch} \u00b7 <span style="color:var(--phos-dim)">${STRATLABEL[r.strategy]}</span></div>
+      <div class="wealth">$${Math.round(r.wealth)}<small> bal \u00b7 vuln \u00d7${r.vuln.toFixed(1)}</small>${club}</div>
+      <div class="actline">${actHtml}</div><div class="why">${r.why||''}</div>`;
+    rc.appendChild(d);
+  });
+  renderWeb(); renderQuad();
+  const lg=document.getElementById('log'); lg.innerHTML=S.log.map(l=>`<p class="${l.cls}"><span class="t">\u25b8</span>${l.text}</p>`).join(''); lg.scrollTop=lg.scrollHeight;
+}
+
+function renderWeb(){
+  const svg=document.getElementById('web'),W=360,cx=W/2,cy=119,R=84,n=S.regions.length;
+  const P=S.regions.map((r,i)=>{const a=-Math.PI/2+i*2*Math.PI/n;return{x:cx+R*Math.cos(a),y:cy+R*Math.sin(a),r};});
+  const C={phos:'#5fe6b4',hot:'#ff5a4d',amber:'#f0b24a',line:'#1d2b29',panel:'#11191b',ets:'#7aa2ff',cool:'#46c6e0',xcr:'#ffd24a'};
+  let edges='',nodes='';
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
+    const a=S.regions[i],b=S.regions[j]; let st=C.line,w=1,op=.25,dash='';
+    if(a.alive&&b.alive){
+      if(COOPe(a)&&COOPe(b)){st=C.phos;w=3;op=.9;}
+      else if(a.energyAct==='dirty'&&b.energyAct==='dirty'){st=C.hot;w=1;op=.4;dash='4 4';}
+      else if(a.energyAct&&b.energyAct){st=C.amber;w=1.3;op=.5;}
+    }
+    edges+=`<line x1="${P[i].x}" y1="${P[i].y}" x2="${P[j].x}" y2="${P[j].y}" stroke="${st}" stroke-width="${w}" opacity="${op}" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+  }
+  P.forEach(p=>{const r=p.r;
+    const fill=!r.alive?'#10181a':(r.energyAct==='dirty'?C.hot:r.energyAct==='clean'?C.cool:C.panel);
+    const ets=r.inTax?`<circle cx="${p.x}" cy="${p.y}" r="25" fill="none" stroke="${C.ets}" stroke-width="2" opacity="${r.alive?.95:.4}"/>`:'';
+    const seq=r.seq?`<circle cx="${p.x}" cy="${p.y}" r="6" fill="${C.xcr}" opacity="${r.alive?1:.4}"/>`:'';
+    nodes+=`${ets}<circle cx="${p.x}" cy="${p.y}" r="19" fill="${fill}" fill-opacity="${r.energyAct&&r.alive?.85:.3}" stroke="${fill}" stroke-width="2" opacity="${r.alive?1:.4}"/>
+      ${seq}<text x="${p.x}" y="${p.y-1}" text-anchor="middle" font-family="monospace" font-size="8.5" font-weight="600" fill="#06100e" opacity="${r.alive?1:.5}">${r.name.slice(0,4)}</text>
+      <text x="${p.x}" y="${p.y+9}" text-anchor="middle" font-family="monospace" font-size="7" fill="#06100e" opacity="${r.alive?.8:.4}">${r.club>0?'\u25c6'+r.club:''}</text>`;
+  });
+  svg.innerHTML=edges+nodes;
+}
+
+function renderQuad(){
+  const svg=document.getElementById('quad'),W=360,H=250,m=34,x0=m,x1=W-12,y0=18,y1=H-m,midX=(x0+x1)/2,midY=(y0+y1)/2;
+  const C={line:'#1d2b29',ink:'#7fa697',ets:'#7aa2ff',xcr:'#ffd24a',phos:'#5fe6b4'};
+  let g=`<rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" fill="none" stroke="${C.line}"/>
+    <line x1="${midX}" y1="${y0}" x2="${midX}" y2="${y1}" stroke="${C.line}" stroke-dasharray="3 3"/>
+    <line x1="${x0}" y1="${midY}" x2="${x1}" y2="${midY}" stroke="${C.line}" stroke-dasharray="3 3"/>
+    <text x="${(x0+midX)/2}" y="${y0+13}" text-anchor="middle" font-family="monospace" font-size="8" fill="${C.ink}">NEITHER</text>
+    <text x="${(midX+x1)/2}" y="${y0+13}" text-anchor="middle" font-family="monospace" font-size="8" fill="${C.ets}">PRICED ONLY</text>
+    <text x="${(x0+midX)/2}" y="${y1-7}" text-anchor="middle" font-family="monospace" font-size="8" fill="${C.xcr}">REMOVING ONLY</text>
+    <text x="${(midX+x1)/2}" y="${y1-7}" text-anchor="middle" font-family="monospace" font-size="8" fill="${C.phos}">BOTH</text>
+    <text x="${midX}" y="${H-6}" text-anchor="middle" font-family="monospace" font-size="8" fill="${C.ets}">\u2192 priced (in ETS)</text>
+    <text x="12" y="${midY}" text-anchor="middle" font-family="monospace" font-size="8" fill="${C.xcr}" transform="rotate(-90 12 ${midY})">\u2192 removing (GCR)</text>`;
+  const buckets={};
+  S.regions.forEach(b=>{ const k=(b.inTax?1:0)+'|'+(b.seq?1:0); (buckets[k]=buckets[k]||[]).push(b); });
+  Object.entries(buckets).forEach(([k,arr])=>{
+    const [priced,removing]=k.split('|').map(Number);
+    const qx=priced?(midX+x1)/2:(x0+midX)/2, qy=removing?(midY+y1)/2:(y0+midY)/2;
+    arr.forEach((b,i)=>{ const cols=Math.ceil(Math.sqrt(arr.length));
+      const dx=((i%cols)-(cols-1)/2)*30, dy=(Math.floor(i/cols)-(Math.ceil(arr.length/cols)-1)/2)*26;
+      const fill=!b.alive?'#10181a':(b.energyAct==='dirty'?'#ff5a4d':b.energyAct==='clean'?'#46c6e0':'#11191b');
+      g+=`<circle cx="${qx+dx}" cy="${qy+dy}" r="13" fill="${fill}" fill-opacity="${b.alive?.85:.3}" stroke="${b.inTax?C.ets:fill}" stroke-width="${b.inTax?2:1.5}"/>
+        <text x="${qx+dx}" y="${qy+dy+2.5}" text-anchor="middle" font-family="monospace" font-size="7" font-weight="600" fill="#06100e">${b.name.slice(0,3)}</text>`;
+    });
+  });
+  svg.innerHTML=g;
+}
+</script>
+</body>
+</html>
