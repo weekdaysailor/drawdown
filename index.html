@@ -62,6 +62,8 @@
   .fill{height:100%;width:0;transition:width .5s ease, background .5s}
   .ticks{display:flex;justify-content:space-between;font-size:9px;color:var(--ink-dim);margin-top:5px}
   .ticks span.safe{color:var(--phos)} .ticks span.thr{color:var(--hot)}
+  .caveat{margin-top:12px;border:1px solid var(--line);border-left:3px solid var(--amber);background:rgba(240,178,74,.05);border-radius:4px;padding:10px 14px;font-family:var(--serif);font-style:italic;font-size:12.5px;line-height:1.5;color:var(--ink-dim)}
+  .caveat b{color:var(--amber);font-style:normal}
 
   .console{margin-top:14px;border:1px solid var(--ets-dim);background:linear-gradient(180deg,rgba(122,162,255,.05),var(--panel));border-radius:4px;padding:16px 18px}
   .console .ctitle{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ets);font-weight:600;margin-bottom:4px}
@@ -127,6 +129,7 @@
   .weblegend i.er{width:11px;height:11px;border-radius:50%;border:2px solid var(--ets)}
   .weblegend i.gd{width:8px;height:8px;border-radius:50%;background:var(--xcr)}
   .weblegend i.bn{width:15px;border-top:2px dashed var(--hot);opacity:.6}
+  .weblegend i.nc{width:11px;height:11px;border-radius:50%} .weblegend i.nc.rd{background:var(--hot)}
 
   .logwrap{margin-top:14px;border:1px solid var(--line);background:#070d0c;border-radius:4px;padding:6px 0}
   .log{max-height:170px;overflow-y:auto;padding:6px 16px}
@@ -164,9 +167,10 @@
     <p>You hold two instruments, and they act on different decisions:</p>
     <ul>
       <li><b style="color:var(--ets)">TAX CLUB · ETS + border tariff</b> — <em>source-side.</em> Prices emissions, so burning stops paying. A border tariff coerces outsiders in. But a price can only push emissions toward zero — it can't pull carbon back out, and <em>taxes hurt someone</em>: push the price too high and blocs revolt, hollow it out, and keep burning.</li>
-      <li><b style="color:var(--xcr)">CARBON REWARD · GCR</b> — <em>sink-side.</em> Pays for removal only — it does <em>not</em> stop anyone burning. And it's capacity-limited: the central-bank backstop can fund only so much removal per cycle (your CQE / inflation ceiling, and the world's real CDR is tiny). It's the only path below zero, but it can't out-remove an open tap.</li>
+      <li><b style="color:var(--xcr)">CARBON REWARD · GCR</b> — <em>sink-side.</em> A performance reward for climate-mitigating activities — carbon removal, ecosystem restoration, <em>and</em> emissions reductions — paid to whoever delivers them, regardless of what others do. (This simulation tracks only the removal slice, since that's what produces net-negative; the real reward is broader.) It's the only path below zero, but it's capacity-limited: the central-bank backstop can fund only so much per cycle — your CQE / inflation ceiling — and it can't out-fund an open tap.</li>
     </ul>
     <p class="warn">Run each alone, then together. Watch where each one stalls — and why neither finishes the job by itself.</p>
+    <p style="font-size:13.5px;color:var(--ink-dim)">One caveat up front: the temperature here responds within a few cycles so you can see cause and effect. The real climate doesn't. Even after the world goes net-negative, ocean and thermal inertia mean warming keeps coasting upward for <em>decades</em> before it actually turns down. The direction of each instrument's effect is the lesson; the speed is compressed for clarity.</p>
     <div class="runbar"><button class="btn" onclick="begin()">▸ Power up console</button></div>
   </section>
 
@@ -191,6 +195,8 @@
       </div>
     </div>
 
+    <div class="caveat" id="timeCaveat">⏱ Timescale is illustrative. In reality temperature lags emissions by <b>decades</b> — even once the world goes net-negative, ocean and thermal inertia keep warming coasting upward for a long time before it actually turns down. Here it responds within cycles so cause and effect are visible; treat the speed, not the direction, as unrealistic.</div>
+
     <div class="console">
       <div class="ctitle">⚙ Policy console — the rules are yours to edit</div>
       <div class="csub">Toggle instruments and tune them, then advance. Changes take effect next cycle.</div>
@@ -207,16 +213,16 @@
         </div>
         <div class="inst gcr-b" id="instGcr">
           <div class="ih" onclick="toggleGcr()"><div class="sw"></div><div class="iname">CARBON REWARD · GCR / XCR</div></div>
-          <div class="idesc">Pays for removal only — doesn't stop burning. Sink-side: the only path below zero, but capacity-limited.</div>
+          <div class="idesc">Rewards climate-mitigating performance — removal, ecosystem restoration, and emissions cuts — a subsidy paid to whoever delivers, on top of any carbon price. Sink-side: the only path below zero, but capacity-limited. (Sim tracks the removal slice.)</div>
           <div class="slider-row" id="xRow">
             <div class="sl-top"><span>Reward per unit removed</span><span><b id="xOut">8</b> /unit</span></div>
             <input type="range" class="rew" min="0" max="14" step="1" value="8" id="xSlider" oninput="setX(this.value)">
-            <div class="sl-marks"><span>0</span><span>removal becomes profitable ~$2</span><span>14</span></div>
+            <div class="sl-marks"><span>0</span><span>removal becomes profitable above ~$1.5</span><span>14</span></div>
           </div>
           <div class="slider-row" id="capRow">
-            <div class="sl-top"><span>Funded-removal ceiling (CQE / CDR capacity)</span><span><b id="capOut">5</b> units/cyc</span></div>
+            <div class="sl-top"><span>Funded delivery ceiling (CQE funding limit)</span><span><b id="capOut">5</b> units/cyc</span></div>
             <input type="range" class="cap" min="0" max="16" step="1" value="5" id="capSlider" oninput="setCap(this.value)">
-            <div class="sl-marks"><span>0</span><span>~7+ : "remove our way out" (implausible)</span><span>16</span></div>
+            <div class="sl-marks"><span>0</span><span>~10+ : "remove our way out" (implausible CDR)</span><span>16</span></div>
           </div>
         </div>
       </div>
@@ -232,12 +238,13 @@
 
     <div class="vrow">
       <div class="vpanel">
-        <div class="lbl">Coalition map · green = clean-energy club · blue ring = ETS member · gold dot = removing</div>
+        <div class="lbl">Coalition map · node colour = energy (cyan abates · red burns) · blue ring = in ETS · gold dot = removing</div>
         <svg id="web" viewBox="0 0 360 250" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="weblegend">
           <span><i class="gl"></i> abatement club</span>
           <span><i class="er"></i> in ETS</span>
-          <span><i class="gd"></i> sequestering</span>
+          <span><i class="nc rd"></i><i class="er" style="margin-left:-9px"></i> backlash (in club, burning)</span>
+          <span><i class="gd"></i> removing</span>
           <span><i class="bn"></i> both burning</span>
         </div>
       </div>
@@ -447,14 +454,16 @@ function endGame(kind,t){
     let head = belowLine
       ? `<p>Warming plateaued at <b style="color:var(--amber)">${fin}\u00b0C</b>. You flattened the curve \u2014 but look closely: the temperature <em>stopped rising; it never fell</em>. That isn\u2019t drawdown.</p>`
       : `<p>Warming held at <b style="color:var(--amber)">${fin}\u00b0C</b> \u2014 the collapse is stopped, but you\u2019re plateaued in the overshoot band, and the temperature never fell.</p>`;
-    if(taxOnly) body.innerHTML=head+`<p>This is the <b>source-side ceiling</b>. A carbon price can drive emissions toward zero \u2014 a flat curve \u2014 but it <em>cannot go negative</em>, so it can never pull back the carbon already in the air. Pricing halts the rise; it cannot reverse it. To bend the curve <em>down</em> you need a sink: switch on the Carbon Reward. (And note \u2014 in reality warming is already locked in near this line, so a plateau isn\u2019t the goal. Drawdown is.)</p>`;
+    const backlash = S.tax && crackCountAt(S.tau)>=2;
+    if(backlash) body.innerHTML=head+`<p>You\u2019re in the <b style="color:var(--hot)">backlash zone</b>: at \u03c4=${S.tau.toFixed(1)}, ${crackCountAt(S.tau)} blocs revolted against the price and keep burning, so the flow stays too high for the sink to turn it negative. Counter-intuitively, a <em>lower</em> price would do better here \u2014 back \u03c4 into the effective zone, where only the structural holdout cracks, and let the reward finish the job. Cranking the stick harder only fuels the revolt.</p>`;
+    else if(taxOnly) body.innerHTML=head+`<p>This is the <b>source-side ceiling</b>. A carbon price can drive emissions toward zero \u2014 a flat curve \u2014 but it <em>cannot go negative</em>, so it can never pull back the carbon already in the air. Pricing halts the rise; it cannot reverse it. To bend the curve <em>down</em> you need a sink: switch on the Carbon Reward. (And note \u2014 in reality warming is already locked in near this line, so a plateau isn\u2019t the goal. Drawdown is.)</p>`;
     else if(gcrOnly) body.innerHTML=head+`<p>This is the <b>sink-side ceiling</b>. Removal ran at its funded cap every cycle \u2014 but with the tap open, the flow matched it, so net emissions never turned negative and the temperature never fell. A capped sink can\u2019t out-pace open emissions. Turn off the tap: add the tax club.</p>`;
-    else body.innerHTML=head+`<p>The curve flattened but didn\u2019t bend down. Cut the flow harder with a higher price, or fund more removal \u2014 you need net-negative, not net-zero.</p>`;
+    else body.innerHTML=head+`<p>The curve flattened but didn\u2019t bend down. Cut the flow with a moderate price, fund more removal \u2014 you need net-negative, not net-zero.</p>`;
   } else {
     card.classList.add('green');
     title.textContent='\u25c7 DRAWDOWN ACHIEVED';
-    let head=`<p>The temperature <b style="color:var(--phos)">actually fell</b> \u2014 net-negative emissions \u2014 from a peak of ${peak}\u00b0C back to ${fin}\u00b0C, below the safe line. The curve didn\u2019t just flatten; it bent down.</p>`;
-    if(both) body.innerHTML=head+`<p>Both instruments, each doing what the other structurally can\u2019t. The <b style="color:var(--ets)">tax club</b> turned off the tap \u2014 pricing carbon and using the border tariff to drag the holdout into the priced regime \u2014 cutting the flow to a small residual. The <b style="color:var(--xcr)">reward</b> then funded removal of that residual, going net-negative where pricing never could. Neither reached drawdown alone: pricing flattens but can\u2019t fall, and a capped sink can\u2019t out-pace an open tap. <b style="color:var(--phos)">Complementary, not competitive.</b></p>`;
+    let head=`<p>The temperature <b style="color:var(--phos)">actually fell</b> \u2014 net-negative emissions \u2014 from a peak of ${peak}\u00b0C back to ${fin}\u00b0C, below the safe line. The curve didn\u2019t just flatten; it bent down. <span style="color:var(--ink-dim)">(In reality this is slow: even once emissions go net-negative, decades pass before warming actually turns down \u2014 the model compresses that timescale so you can see the mechanism.)</span></p>`;
+    if(both) body.innerHTML=head+`<p>Both instruments, each doing what the other structurally can\u2019t. The <b style="color:var(--ets)">tax club</b> turned off the tap \u2014 pricing carbon and using the border tariff to drag blocs into the priced regime \u2014 cutting the flow to a small residual. The <b style="color:var(--xcr)">reward</b> then funded removal of that residual, going net-negative where pricing never could. And where a bloc revolted against the tax, its developers kept sequestering anyway \u2014 the reward routing around the political backlash, because nobody revolts against being paid. Neither reached drawdown alone: pricing flattens but can\u2019t fall, and a capped sink can\u2019t out-pace an open tap. <b style="color:var(--phos)">Complementary, not competitive.</b></p>`;
     else if(gcrOnly) body.innerHTML=head+`<p>You drew down on the reward alone \u2014 but only because the funded-removal ceiling (${S.rmax}/cycle) is set high enough to out-pace the open tap. That assumes far more cheap CDR capacity than exists. Drop the ceiling to a realistic level and the sink can no longer keep up without a price cutting the flow first.</p>`;
     else body.innerHTML=head+`<p>Drawdown reached.</p>`;
   }
