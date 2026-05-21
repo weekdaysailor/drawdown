@@ -167,7 +167,7 @@
     <p>You hold two instruments, and they act on different decisions:</p>
     <ul>
       <li><b style="color:var(--ets)">TAX CLUB · ETS + border tariff</b> — <em>source-side.</em> Prices emissions, so burning stops paying. A border tariff coerces outsiders in. But a price can only push emissions toward zero — it can't pull carbon back out, and <em>taxes hurt someone</em>: push the price too high and blocs revolt, hollow it out, and keep burning.</li>
-      <li><b style="color:var(--xcr)">CARBON REWARD · GCR</b> — <em>sink-side.</em> A performance reward for climate-mitigating activities — carbon removal, ecosystem restoration, <em>and</em> emissions reductions — paid to whoever delivers them, regardless of what others do. (This simulation tracks only the removal slice, since that's what produces net-negative; the real reward is broader.) It's the only path below zero, but it's capacity-limited: the central-bank backstop can fund only so much per cycle — your CQE / inflation ceiling — and it can't out-fund an open tap.</li>
+      <li><b style="color:var(--xcr)">CARBON REWARD · GCR</b> — <em>sink-side.</em> A performance reward for climate-mitigating activities — carbon removal, ecosystem restoration, <em>and</em> emissions reductions — paid to whoever delivers them, regardless of what others do. (This simulation tracks only the removal slice, since that's what produces net-negative; the real reward is broader.) It's the only path below zero, but it's capacity-limited: the central-bank backstop can fund only so much per cycle — your CQE / inflation ceiling — and it can't out-fund an open tap. Bonus: the investment it brings in-country raises the <em>political</em> tolerance for a carbon price, so a bloc hosting GCR projects can bear a higher tax before it revolts.</li>
     </ul>
     <p class="warn">Run each alone, then together. Watch where each one stalls — and why neither finishes the job by itself.</p>
     <p style="font-size:13.5px;color:var(--ink-dim)">One caveat up front: the temperature here responds within a few cycles so you can see cause and effect. The real climate doesn't. Even after the world goes net-negative, ocean and thermal inertia mean warming keeps coasting upward for <em>decades</em> before it actually turns down. The direction of each instrument's effect is the lesson; the speed is compressed for clarity.</p>
@@ -265,6 +265,7 @@
 const CFG={baselineT:1.10,emFactor:0.015,damageScale:3.0,winT:1.5,overshootT:2.0,catastropheT:2.5,rounds:12};
 const DIRTY_INC=8, DIRTY_EM=3, CLEAN_INC=3, REM_UNIT=3, C_REM=1.5, INERTIA=3;
 const CLUB_RELIEF=0.08, CLUB_CAP=3, KAPPA=1.6, JOINCOST=5;
+const TOL_BOOST_PER_X=0.15;   // political tolerance gained per $ of reward (in-country GCR investment)
 const ARCH=[
   {id:'industrial',name:'MERIDIAN',arch:'old industrial core',  vuln:1.2,fossil:1.0,tol:5.0,strategy:'rational'},
   {id:'emerging',  name:'KARASU',  arch:'fast-rising economy',  vuln:1.5,fossil:1.2,tol:2.8,strategy:'conditional'},
@@ -280,12 +281,16 @@ const feedback=t=>t>=CFG.overshootT?6:0;
 
 let S=null, autoTimer=null;
 
-// political backlash: a club member whose pain (price x carbon-intensity) exceeds tolerance CRACKS —
+// GCR investment raises political tolerance: hosting reward-funded projects brings in-country
+// jobs/investment/constituency that makes the carbon price more survivable (scales with reward).
+const gcrActive=()=> S.gcr && (S.x - C_REM) > 0;
+const tolEff=b=> b.tol + (gcrActive()? TOL_BOOST_PER_X*S.x : 0);
+// political backlash: a club member whose pain (price x carbon-intensity) exceeds (boosted) tolerance CRACKS —
 // stays in the club (coercion won) but hollows out the price domestically and keeps burning.
-const cracked=b=> S.tax && b.inTax && (S.tau*b.fossil > b.tol);
-const crackCountAt=tau=> ARCH.filter(b=> tau*b.fossil > b.tol).length;
-const backlashTau=()=>{ // price at which the SECOND bloc cracks (backlash onset)
-  const thr=ARCH.map(b=>b.tol/b.fossil).sort((a,c)=>a-c); return thr[1];
+const cracked=b=> S.tax && b.inTax && (S.tau*b.fossil > tolEff(b));
+const crackCountAt=tau=> ARCH.filter(b=> tau*b.fossil > tolEff(b)).length;
+const backlashTau=()=>{ // price at which the SECOND bloc cracks (backlash onset), given current GCR state
+  const thr=ARCH.map(b=>tolEff(b)/b.fossil).sort((a,c)=>a-c); return thr[1];
 };
 const eDirty=b=> DIRTY_INC - ((S.tax&&b.inTax&&!cracked(b))?S.tau*DIRTY_EM:0) - md(DIRTY_EM,b.vuln);
 const eClean=b=> CLEAN_INC - md(0,b.vuln);
@@ -345,12 +350,13 @@ function setTau(v){ S.tau=parseFloat(v); document.getElementById('tauOut').textC
 function updateResistance(){
   const max=3, bl=backlashTau(), weakEnd=1.5;          // <1.5 too weak to bite; backlashTau = 2nd cracker
   document.getElementById('zWeak').style.width=(weakEnd/max*100)+'%';
-  document.getElementById('zGood').style.width=((Math.min(bl,max)-weakEnd)/max*100)+'%';
+  document.getElementById('zGood').style.width=((Math.max(weakEnd,Math.min(bl,max))-weakEnd)/max*100)+'%';
   document.getElementById('zBad').style.width=((max-Math.min(bl,max))/max*100)+'%';
   const n=crackCountAt(S.tau), cl=document.getElementById('crackLine');
-  if(S.tau<weakEnd) cl.innerHTML=`<b class="weak">Price too weak to bite</b> — blocs free-ride, the flow stays high.`;
-  else if(n<=1) cl.innerHTML=`<b class="ok">Effective zone</b> — only the structural petro-holdout cracks. ${n} bloc resisting.`;
-  else cl.innerHTML=`<b class="warn">Backlash zone</b> — at τ=${S.tau.toFixed(1)}, ${n} blocs crack under domestic revolt and burn anyway.`;
+  const lift = gcrActive() ? ` <span style="color:var(--xcr)">GCR investment is raising political tolerance — backlash pushed out.</span>` : '';
+  if(S.tau<weakEnd) cl.innerHTML=`<b class="weak">Price too weak to bite</b> — blocs free-ride, the flow stays high.`+lift;
+  else if(n<=1) cl.innerHTML=`<b class="ok">Effective zone</b> — only the structural petro-holdout cracks. ${n} bloc resisting.`+lift;
+  else cl.innerHTML=`<b class="warn">Backlash zone</b> — at τ=${S.tau.toFixed(1)}, ${n} blocs crack under domestic revolt and burn anyway.`+lift;
 }
 function setX(v){ S.x=parseFloat(v); document.getElementById('xOut').textContent=v; render(); }
 function setCap(v){ S.rmax=parseFloat(v); document.getElementById('capOut').textContent=v; render(); }
@@ -463,7 +469,7 @@ function endGame(kind,t){
     card.classList.add('green');
     title.textContent='\u25c7 DRAWDOWN ACHIEVED';
     let head=`<p>The temperature <b style="color:var(--phos)">actually fell</b> \u2014 net-negative emissions \u2014 from a peak of ${peak}\u00b0C back to ${fin}\u00b0C, below the safe line. The curve didn\u2019t just flatten; it bent down. <span style="color:var(--ink-dim)">(In reality this is slow: even once emissions go net-negative, decades pass before warming actually turns down \u2014 the model compresses that timescale so you can see the mechanism.)</span></p>`;
-    if(both) body.innerHTML=head+`<p>Both instruments, each doing what the other structurally can\u2019t. The <b style="color:var(--ets)">tax club</b> turned off the tap \u2014 pricing carbon and using the border tariff to drag blocs into the priced regime \u2014 cutting the flow to a small residual. The <b style="color:var(--xcr)">reward</b> then funded removal of that residual, going net-negative where pricing never could. And where a bloc revolted against the tax, its developers kept sequestering anyway \u2014 the reward routing around the political backlash, because nobody revolts against being paid. Neither reached drawdown alone: pricing flattens but can\u2019t fall, and a capped sink can\u2019t out-pace an open tap. <b style="color:var(--phos)">Complementary, not competitive.</b></p>`;
+    if(both) body.innerHTML=head+`<p>Both instruments, each doing what the other structurally can\u2019t. The <b style="color:var(--ets)">tax club</b> turned off the tap \u2014 pricing carbon and using the border tariff to drag blocs into the priced regime \u2014 cutting the flow to a small residual. The <b style="color:var(--xcr)">reward</b> then funded removal of that residual, going net-negative where pricing never could \u2014 and the in-country investment it brought raised political tolerance, so the price could hold without triggering revolt. Where a bloc still cracked, its developers kept sequestering anyway \u2014 the reward routing around the backlash, because nobody revolts against being paid. Neither reached drawdown alone: pricing flattens but can\u2019t fall, and a capped sink can\u2019t out-pace an open tap. <b style="color:var(--phos)">Complementary, not competitive.</b></p>`;
     else if(gcrOnly) body.innerHTML=head+`<p>You drew down on the reward alone \u2014 but only because the funded-removal ceiling (${S.rmax}/cycle) is set high enough to out-pace the open tap. That assumes far more cheap CDR capacity than exists. Drop the ceiling to a realistic level and the sink can no longer keep up without a price cutting the flow first.</p>`;
     else body.innerHTML=head+`<p>Drawdown reached.</p>`;
   }
