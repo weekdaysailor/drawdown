@@ -167,7 +167,7 @@
     <p>You hold two instruments, and they act on different decisions:</p>
     <ul>
       <li><b style="color:var(--ets)">TAX CLUB · ETS + border tariff</b> — <em>source-side.</em> Prices emissions, so burning stops paying. A border tariff coerces outsiders in. But a price can only push emissions toward zero — it can't pull carbon back out, and <em>taxes hurt someone</em>: push the price too high and blocs revolt, hollow it out, and keep burning.</li>
-      <li><b style="color:var(--xcr)">CARBON REWARD · GCR</b> — <em>sink-side.</em> A performance reward for climate-mitigating activities — carbon removal, ecosystem restoration, <em>and</em> emissions reductions — paid to whoever delivers them, regardless of what others do. (This simulation tracks only the removal slice, since that's what produces net-negative; the real reward is broader.) It's the only path below zero, but it's capacity-limited: the central-bank backstop can fund only so much per cycle — your CQE / inflation ceiling — and it can't out-fund an open tap. Bonus: the investment it brings in-country raises the <em>political</em> tolerance for a carbon price, so a bloc hosting GCR projects can bear a higher tax before it revolts.</li>
+      <li><b style="color:var(--xcr)">CARBON REWARD · GCR</b> — <em>sink-side, and more.</em> A performance reward for climate-mitigating activities — carbon removal, ecosystem restoration, <em>and</em> emissions reductions — paid to whoever delivers them. Here it does two things: it funds <b>removal</b> (the only path below zero), and it <b>finances the clean switch</b> — but a subsidy pays for a replacement, it doesn’t make the old plant unprofitable. With no carbon price, the coal plant is still cheap to run, so it lingers and the subsidized clean capacity just adds alongside it (Jevons). The reward retires the plant only when a price is also on it. It can reward, never penalize — so it can’t move a revenue-locked petrostate, and it’s capped by the CQE / inflation ceiling. It also brings in-country investment that raises the <em>political</em> tolerance for a carbon price.</li>
     </ul>
     <p class="warn">Run each alone, then together. Watch where each one stalls — and why neither finishes the job by itself.</p>
     <p style="font-size:13.5px;color:var(--ink-dim)">One caveat up front: the temperature here responds within a few cycles so you can see cause and effect. The real climate doesn't. Even after the world goes net-negative, ocean and thermal inertia mean warming keeps coasting upward for <em>decades</em> before it actually turns down. The direction of each instrument's effect is the lesson; the speed is compressed for clarity.</p>
@@ -183,9 +183,9 @@
     <div class="hud">
       <div class="gauge">
         <div class="lbl">Global mean temperature <span id="peakNote" style="color:var(--ink-dim);letter-spacing:.04em"></span></div>
-        <div class="tval"><span id="tempVal">1.10</span><small>°C above pre-industrial</small></div>
+        <div class="tval"><span id="tempVal">1.40</span><small>°C above pre-industrial</small></div>
         <div class="track"><div class="fill" id="tempFill"></div></div>
-        <div class="ticks"><span>1.1°</span><span class="safe">1.5° safe</span><span class="thr">2.0° overshoot</span><span class="thr">2.5°</span></div>
+        <div class="ticks"><span>1.4°</span><span class="safe">1.5° safe</span><span class="thr">2.0° overshoot</span><span class="thr">2.5°</span></div>
       </div>
       <div class="carbo">
         <div class="lbl">Atmospheric carbon load</div>
@@ -213,7 +213,7 @@
         </div>
         <div class="inst gcr-b" id="instGcr">
           <div class="ih" onclick="toggleGcr()"><div class="sw"></div><div class="iname">CARBON REWARD · GCR / XCR</div></div>
-          <div class="idesc">Rewards climate-mitigating performance — removal, ecosystem restoration, and emissions cuts — a subsidy paid to whoever delivers, on top of any carbon price. Sink-side: the only path below zero, but capacity-limited. (Sim tracks the removal slice.)</div>
+          <div class="idesc">Rewards climate-mitigating performance — removal, ecosystem restoration, and emissions cuts. Funds removal (the only path below zero) and finances clean replacements — but with no price, the cheap coal plant lingers. It pays for the switch; only a price retires the plant.</div>
           <div class="slider-row" id="xRow">
             <div class="sl-top"><span>Reward per unit removed</span><span><b id="xOut">8</b> /unit</span></div>
             <input type="range" class="rew" min="0" max="14" step="1" value="8" id="xSlider" oninput="setX(this.value)">
@@ -262,19 +262,20 @@
 
 <script>
 // ===================== DECOUPLED TWO-PRICE MODEL (proven in node) =====================
-const CFG={baselineT:1.10,emFactor:0.015,damageScale:3.0,winT:1.5,overshootT:2.0,catastropheT:2.5,rounds:12};
+const CFG={baselineT:1.40,emFactor:0.010,damageScale:3.0,winT:1.5,overshootT:2.0,catastropheT:2.5,rounds:12};
 const DIRTY_INC=8, DIRTY_EM=3, CLEAN_INC=3, REM_UNIT=3, C_REM=1.5, INERTIA=3;
 const CLUB_RELIEF=0.08, CLUB_CAP=3, KAPPA=1.6, JOINCOST=5;
 const TOL_BOOST_PER_X=0.15;   // political tolerance gained per $ of reward (in-country GCR investment)
+const GCR_TRANSITION=5;       // transition finance: reward subsidizes the clean switch for willing blocs
 const ARCH=[
-  {id:'industrial',name:'MERIDIAN',arch:'old industrial core',  vuln:1.2,fossil:1.0,tol:5.0,strategy:'rational'},
-  {id:'emerging',  name:'KARASU',  arch:'fast-rising economy',  vuln:1.5,fossil:1.2,tol:2.8,strategy:'conditional'},
-  {id:'petro',     name:'AZRAQ',   arch:'petro-exporter',       vuln:0.8,fossil:1.6,tol:1.5,strategy:'holdout'},
-  {id:'temperate', name:'VESNA',   arch:'temperate middle power',vuln:1.3,fossil:0.9,tol:2.9,strategy:'reciprocator'},
-  {id:'frontline', name:'TUVALA',  arch:'frontline archipelago',vuln:3.0,fossil:0.4,tol:99,strategy:'idealist'},
+  {id:'industrial',name:'MERIDIAN',arch:'old industrial core',  vuln:1.2,fossil:1.0,tol:5.0,strategy:'rational',     willing:true },
+  {id:'emerging',  name:'KARASU',  arch:'fast-rising economy',  vuln:1.5,fossil:1.2,tol:2.8,strategy:'conditional',  willing:false},
+  {id:'petro',     name:'AZRAQ',   arch:'petro-exporter',       vuln:0.8,fossil:1.6,tol:1.5,strategy:'holdout',      willing:false},
+  {id:'temperate', name:'VESNA',   arch:'temperate middle power',vuln:1.3,fossil:0.9,tol:2.9,strategy:'reciprocator', willing:true },
+  {id:'frontline', name:'TUVALA',  arch:'frontline archipelago',vuln:3.0,fossil:0.4,tol:99,strategy:'idealist',      willing:true },
 ];
 const STRATLABEL={rational:'rational maximizer',conditional:'conditional cooperator',holdout:'fossil holdout',reciprocator:'tit-for-tat',idealist:'unilateral abater'};
-const temp=e=>Math.max(1.0,CFG.baselineT+e*CFG.emFactor);
+const temp=e=>Math.max(1.20,CFG.baselineT+e*CFG.emFactor);
 const md=(em,v)=>em*CFG.emFactor*v*CFG.damageScale;
 const cd=(t,v)=>Math.max(0,(t-CFG.baselineT))*v*CFG.damageScale;
 const feedback=t=>t>=CFG.overshootT?6:0;
@@ -292,8 +293,13 @@ const crackCountAt=tau=> ARCH.filter(b=> tau*b.fossil > tolEff(b)).length;
 const backlashTau=()=>{ // price at which the SECOND bloc cracks (backlash onset), given current GCR state
   const thr=ARCH.map(b=>tolEff(b)/b.fossil).sort((a,c)=>a-c); return thr[1];
 };
+// GCR transition finance: a subsidy that pays for the clean replacement — but it RETIRES the coal plant
+// only when a price is also on the bloc making the dirty plant unprofitable. With no price (GCR-alone),
+// the money is there but the profitable coal plant lingers, and subsidized clean just adds alongside it
+// (a touch of Jevons). The petro-holdout is revenue-locked; the emerging economy needs a binding price.
+const gcrFin=b=> (gcrActive() && b.willing && S.tax && b.inTax && !cracked(b)) ? GCR_TRANSITION : 0;
 const eDirty=b=> DIRTY_INC - ((S.tax&&b.inTax&&!cracked(b))?S.tau*DIRTY_EM:0) - md(DIRTY_EM,b.vuln);
-const eClean=b=> CLEAN_INC - md(0,b.vuln);
+const eClean=b=> CLEAN_INC - md(0,b.vuln) + gcrFin(b);
 function energy(b,round,coopOth,defOth){
   if(cracked(b)) return 'dirty';   // backlash overrides economics: hollow the price, keep burning
   switch(b.strategy){
@@ -306,21 +312,26 @@ function energy(b,round,coopOth,defOth){
       return coopOth>=defOth?'clean':'dirty';
     case 'conditional':
       if(round===1) return 'dirty';
-      if(S.tax&&b.inTax && eClean(b)>eDirty(b)) return 'clean';
-      return coopOth>=2?'clean':'dirty';
+      if(S.tax&&b.inTax && eClean(b)>eDirty(b)) return 'clean';   // decarbonizes on a binding price signal
+      return coopOth>=2?'clean':'dirty';                         // or follows the pack; a subsidy alone won't move it
   } return 'dirty';
 }
 const removalProfitable=()=> S.gcr && (S.x - C_REM) > 0;
 function whyText(b){
   const burn=b.energyAct==='dirty';
+  const priced = S.tax&&b.inTax&&!b.crk;
+  const financed = !burn && b.willing && gcrFin(b)>0;                          // retired by price + finance together
+  const lingering = burn && b.willing && gcrActive() && !priced;              // money's there, but no price to retire it
   let s;
   if(b.crk){ s='Domestic backlash: the carbon price is too painful, so it stays in the club but hollows the price out and keeps burning.'; }
+  else if(financed){ s='Price plus reward, together: the carbon price made the coal plant unprofitable and the reward financed its clean replacement \u2014 neither alone would have retired it.'; }
+  else if(lingering){ s='The reward is there to fund a clean switch, but with no carbon price the coal plant is still profitable, so it lingers \u2014 subsidized clean just adds alongside it (a touch of Jevons).'; }
   else switch(b.strategy){
     case 'idealist': s='Abates voluntarily — the lone unilateral mover.'; break;
     case 'holdout':  s=burn?(b.inTax?'In the ETS but games it — pays the tax and keeps burning.':'Burns cheap fossil energy — no price, no reason to stop.'):'A high enough carbon price finally cracked it — abates.'; break;
     case 'rational': s=burn?'No carbon price on it — dirty energy is simply cheaper.':'Priced in: abating now beats paying the carbon tax.'; break;
     case 'reciprocator': s=burn?'Burns — others are, and nothing prices it otherwise.':'Abates — priced into the club, or mirroring the cleaners.'; break;
-    case 'conditional':  s=burn?'Burns — waiting for a binding signal.':'Priced into the club — now it abates.'; break;
+    case 'conditional':  s=burn?'Burns — a subsidy alone won\u2019t move it; it needs a binding price signal.':'Priced into the club — now it abates.'; break;
     default: s='';
   }
   if(b.seq) s+= b.crk?' But its developers still sequester for the reward.':' Also sequesters for the reward.';
@@ -330,7 +341,7 @@ function whyText(b){
 // ===================== FLOW =====================
 function freshRegions(){ return ARCH.map(a=>({...a,wealth:50,alive:true,energyAct:null,seq:false,inTax:false,crk:false,club:0,dead:false})); }
 function begin(){
-  S={tax:false,gcr:false,tau:2,x:8,rmax:5,round:0,emTotal:0,peak:1.10,peakEm:0,over:false,regions:freshRegions(),log:[]};
+  S={tax:false,gcr:false,tau:2,x:8,rmax:5,round:0,emTotal:0,peak:1.40,peakEm:0,over:false,regions:freshRegions(),log:[]};
   document.getElementById('briefing').style.display='none';
   document.getElementById('game').classList.add('live');
   pushLog('sys','CONSOLE ONLINE — baseline ruleset, no instruments. Advance to run.');
@@ -338,7 +349,7 @@ function begin(){
 }
 function resetWorld(){
   stopAuto(); const {tax,gcr,tau,x,rmax}=S;
-  S={tax,gcr,tau,x,rmax,round:0,emTotal:0,peak:1.10,peakEm:0,over:false,regions:freshRegions(),log:[]};
+  S={tax,gcr,tau,x,rmax,round:0,emTotal:0,peak:1.40,peakEm:0,over:false,regions:freshRegions(),log:[]};
   document.getElementById('endCard').classList.remove('show');
   const r=[]; if(tax)r.push('ETS τ='+tau); if(gcr)r.push('GCR x='+x+' cap='+rmax);
   pushLog('sys','WORLD RESET — '+(r.length?r.join(' + '):'baseline, no instruments')+'.');
@@ -463,13 +474,13 @@ function endGame(kind,t){
     const backlash = S.tax && crackCountAt(S.tau)>=2;
     if(backlash) body.innerHTML=head+`<p>You\u2019re in the <b style="color:var(--hot)">backlash zone</b>: at \u03c4=${S.tau.toFixed(1)}, ${crackCountAt(S.tau)} blocs revolted against the price and keep burning, so the flow stays too high for the sink to turn it negative. Counter-intuitively, a <em>lower</em> price would do better here \u2014 back \u03c4 into the effective zone, where only the structural holdout cracks, and let the reward finish the job. Cranking the stick harder only fuels the revolt.</p>`;
     else if(taxOnly) body.innerHTML=head+`<p>This is the <b>source-side ceiling</b>. A carbon price can drive emissions toward zero \u2014 a flat curve \u2014 but it <em>cannot go negative</em>, so it can never pull back the carbon already in the air. Pricing halts the rise; it cannot reverse it. To bend the curve <em>down</em> you need a sink: switch on the Carbon Reward. (And note \u2014 in reality warming is already locked in near this line, so a plateau isn\u2019t the goal. Drawdown is.)</p>`;
-    else if(gcrOnly) body.innerHTML=head+`<p>This is the <b>sink-side ceiling</b>. Removal ran at its funded cap every cycle \u2014 but with the tap open, the flow matched it, so net emissions never turned negative and the temperature never fell. A capped sink can\u2019t out-pace open emissions. Turn off the tap: add the tax club.</p>`;
+    else if(gcrOnly) body.innerHTML=head+`<p>This is the <b>sink-side ceiling</b>. The reward funded removal at its cap, and the money to finance clean replacements was there \u2014 but with no carbon price, the coal plants stayed profitable and lingered, with subsidized clean capacity adding alongside them rather than replacing them. A subsidy pays for the new; only a price retires the old. The tap stays open and a capped sink can\u2019t out-pace it. Add the tax club \u2014 then the reward\u2019s finance actually retires the plants the price makes unprofitable.</p>`;
     else body.innerHTML=head+`<p>The curve flattened but didn\u2019t bend down. Cut the flow with a moderate price, fund more removal \u2014 you need net-negative, not net-zero.</p>`;
   } else {
     card.classList.add('green');
     title.textContent='\u25c7 DRAWDOWN ACHIEVED';
     let head=`<p>The temperature <b style="color:var(--phos)">actually fell</b> \u2014 net-negative emissions \u2014 from a peak of ${peak}\u00b0C back to ${fin}\u00b0C, below the safe line. The curve didn\u2019t just flatten; it bent down. <span style="color:var(--ink-dim)">(In reality this is slow: even once emissions go net-negative, decades pass before warming actually turns down \u2014 the model compresses that timescale so you can see the mechanism.)</span></p>`;
-    if(both) body.innerHTML=head+`<p>Both instruments, each doing what the other structurally can\u2019t. The <b style="color:var(--ets)">tax club</b> turned off the tap \u2014 pricing carbon and using the border tariff to drag blocs into the priced regime \u2014 cutting the flow to a small residual. The <b style="color:var(--xcr)">reward</b> then funded removal of that residual, going net-negative where pricing never could \u2014 and the in-country investment it brought raised political tolerance, so the price could hold without triggering revolt. Where a bloc still cracked, its developers kept sequestering anyway \u2014 the reward routing around the backlash, because nobody revolts against being paid. Neither reached drawdown alone: pricing flattens but can\u2019t fall, and a capped sink can\u2019t out-pace an open tap. <b style="color:var(--phos)">Complementary, not competitive.</b></p>`;
+    if(both) body.innerHTML=head+`<p>Both instruments, each doing what the other structurally can\u2019t. The <b style="color:var(--ets)">tax club</b> made the coal plants unprofitable and the border tariff dragged even the refusers into the priced regime; the <b style="color:var(--xcr)">reward</b> financed the clean replacements (a price kills the old plant, a subsidy pays for the new \u2014 neither alone retires it), funded removal of the residual to go net-negative, and brought investment that raised political tolerance so the price could hold without revolt. Where a bloc still cracked, its developers kept sequestering anyway. Neither reached drawdown alone: a price can\u2019t go below zero or finance the switch, and a reward can\u2019t make the dirty plant unprofitable. <b style="color:var(--phos)">Complementary, not competitive.</b></p>`;
     else if(gcrOnly) body.innerHTML=head+`<p>You drew down on the reward alone \u2014 but only because the funded-removal ceiling (${S.rmax}/cycle) is set high enough to out-pace the open tap. That assumes far more cheap CDR capacity than exists. Drop the ceiling to a realistic level and the sink can no longer keep up without a price cutting the flow first.</p>`;
     else body.innerHTML=head+`<p>Drawdown reached.</p>`;
   }
@@ -490,7 +501,7 @@ function render(){
   document.getElementById('tempVal').textContent=t.toFixed(2);
   const pn=document.getElementById('peakNote');
   if(S.round===0){ pn.textContent=''; }
-  else { const falling=(S.peakEm-S.emTotal)>0.5; const flat=Math.abs(S.peakEm-S.emTotal)<=0.5 && S.peak>1.101;
+  else { const falling=(S.peakEm-S.emTotal)>0.5; const flat=Math.abs(S.peakEm-S.emTotal)<=0.5 && S.peak>1.401;
     pn.innerHTML = falling ? `· peak ${S.peak.toFixed(2)}\u00b0 <span style="color:var(--phos)">\u25bc falling</span>`
       : flat ? `· <span style="color:var(--amber)">\u2014 plateaued</span>` : `· <span style="color:var(--hot)">\u25b2 rising</span>`; }
   const tf=document.getElementById('tempFill');
